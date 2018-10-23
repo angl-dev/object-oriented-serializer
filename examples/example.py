@@ -1,5 +1,7 @@
 from serializer import *
 
+## Basic usage
+
 class Animal(Serializable):
     type = Attribute(required=True)
     description = TextContent()
@@ -30,3 +32,49 @@ zoo.animal.append(cow)
 outstream = StringIO()
 serialize_xml(outstream, 'zoo', zoo, pretty=True)
 print outstream.getvalue()
+
+## Advanced usage I
+
+class AnimalCategory(Animal):
+    @property
+    def description(self):  # remove the text content from the schema
+        raise NotImplementedError
+
+    subtype = ChildObject(Animal, required=True, multiple=True)
+
+class BetterZoo(Zoo):
+    category = ChildObject(AnimalCategory, required=True, multiple=True)
+
+zoo2 = deserialize_xml(StringIO('<zoo><category type="mammal">'
+    '<subtype type="human">Humans (taxonomically, Homo sapiens) are the only '
+    'extant members of the subtribe Hominina.</subtype>'
+    '<subtype type="whale">Whales are a widely distributed and diverse group '
+    'of fully aquatic placental marine mammals.</subtype>'
+    '</category><animal type="fish">Fish are gill-bearing aquatic craniate '
+    'animals that lack limbs with digits.</animal></zoo>'),
+    'zoo', BetterZoo)
+
+for category in zoo2.category:
+    for subtype in category.subtype:
+        print subtype.type
+for animal in zoo2.animal:
+    print animal.type
+
+class DetailedAnimal(Animal):
+    features = Attribute(required=False, key='feature')
+
+    @features.deserializer
+    def features(s):
+        return s.split()
+
+    @features.serializer
+    def features(v):
+        return ' '.join(v)
+
+animal = deserialize_xml(StringIO('<animal type="bird" feature="fly sing">'
+    'Birds, also known as Aves, are a group of endothermic vertebrates, '
+    'characterised by feathers, toothless beaked jaws, the laying of '
+    'hard-shelled eggs, a high metabolic rate, a four-chambered heart, and a '
+    'strong yet lightweight skeleton.</animal>'), 'animal', DetailedAnimal)
+for feature in animal.features:
+    print feature

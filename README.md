@@ -15,11 +15,11 @@
 To minimize possible confusions of the description below, we define the
 following vocabulary:
 
-* *serializable class*: a class inheriting the `Serializable` class
-* *serializable object*: an instance of a serializable class
-* *serializable property* a `Attribute`, `ChildObject` or `TextContent`
+* **serializable class**: a class inheriting the `Serializable` class
+* **serializable object**: an instance of a serializable class
+* **serializable property**: a `Attribute`, `ChildObject` or `TextContent`
   property of a serializable class
-* *key*: key in the serialized format, that is, tag in XML, key in JSON/YAML
+* **key**: key in the serialized format, that is, tag in XML, key in JSON/YAML
 
 ## Basic usage
 
@@ -108,6 +108,83 @@ print outstream.getvalue()
 ```
 
 ## Advanced usage I: Combine schemas
+
+It's possible to inherit serializable classes to extend or combine schemas.
+Note that it's also possible to override some serializable properties with
+regular properties or methods, and they simply follow Python's MRO.
+
+```python
+class AnimalCategory(Animal):
+    @property
+    def description(self):  # remove the text content from the schema
+        raise NotImplementedError
+
+    subtype = ChildObject(Animal, required=True, multiple=True)
+
+class BetterZoo(Zoo):
+    category = ChildObject(AnimalCategory, required=True, multiple=True)
+
+zoo2 = deserialize_xml(StringIO('<zoo><category type="mammal">'
+    '<subtype type="human">Humans (taxonomically, Homo sapiens) are the only '
+    'extant members of the subtribe Hominina.</subtype>'
+    '<subtype type="whale">Whales are a widely distributed and diverse group '
+    'of fully aquatic placental marine mammals.</subtype>'
+    '</category><animal type="fish">Fish are gill-bearing aquatic craniate '
+    'animals that lack limbs with digits.</animal></zoo>'),
+    'zoo', BetterZoo)
+
+for category in zoo2.category:
+    for subtype in category.subtype:
+        print subtype.type
+for animal in zoo2.animal:
+    print animal.type
+# output
+# > human
+# > whale
+# > fish
+```
+
+## Advanced usage II: Advanced serialzable properties
+
+Sometimes we want the key and property name of a serializable property to be
+different. For example, the key might be a reserved keyword in Python. Use
+`key` in `Attribute`, `ChildObject` and `TextContent` to specify a different
+key.
+
+`Attribute`, `ChildObject` and `TextContent` can also be used just like
+Python's built-in `property` decorator. Besides, XML, JSON and YAML only
+support a limited number of basic data types, but we often want to have some
+more specific type of data. So, `Attribute` and `TextContent` also have
+`serializer` and `serializer` methods which can be used to convert between
+custom data types and basic data types.
+
+```python
+class DetailedAnimal(Animal):
+    features = Attribute(required=False, key='feature')
+
+    @features.deserializer
+    def features(s):
+        return s.split()
+
+    @features.serializer
+    def features(v):
+        return ' '.join(v)
+
+animal = deserialize_xml(StringIO('<animal type="bird" feature="fly sing">'
+    'Birds, also known as Aves, are a group of endothermic vertebrates, '
+    'characterised by feathers, toothless beaked jaws, the laying of '
+    'hard-shelled eggs, a high metabolic rate, a four-chambered heart, and a '
+    'strong yet lightweight skeleton.</animal>'), 'animal', DetailedAnimal)
+for feature in animal.features:
+    print feature
+
+# output
+# > fly
+# > sing
+```
+
+It's also possible to ask the serializer to ignore a serializable property.
+Return `IGNORE` in the `serializer` method to do so.
 
 ## Pitfalls
 
