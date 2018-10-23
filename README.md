@@ -10,6 +10,17 @@
 3. User interface:
     * Detailed error report for data that don't match the defined schema
 
+## Vocabulary
+
+To minimize possible confusions of the description below, we define the
+following vocabulary:
+
+* *serializable class*: a class inheriting the `Serializable` class
+* *serializable object*: an instance of a serializable class
+* *serializable property* a `Attribute`, `ChildObject` or `TextContent`
+  property of a serializable class
+* *key*: key in the serialized format, that is, tag in XML, key in JSON/YAML
+
 ## Basic usage
 
 The key class is the `Serializable` class. Inherit this class to create a
@@ -29,11 +40,11 @@ class Zoo(Serializable):
     animal = ChildObject(Animal, required=True, multiple=True)
 ```
 
-Use `deserialize_xml` to deserialize a XML file with the schema
+Use `deserialize_xml` to deserialize a XML file with a serializable class
 (`deserialize_json` and `deserialize_yaml` will be added later). This function
 takes three arguments, the first being a file-like object to deserialize from,
 the second being the root key, and the third being a factory function which
-can create serializable objects (could be the schema class itself).
+can create serializable objects (could be the serializable class itself).
 
 ```python
 from StringIO import StringIO
@@ -50,8 +61,7 @@ zoo = deserialize_xml(StringIO('''
 ```
 
 After deserialization, the serializable object `zoo` has everything stored in
-it. The attributes and child objects can be accessed just like normal
-properties.
+it. All serializable properties can be accessed just like normal properties.
 
 ```python
 for animal in zoo.animal:
@@ -71,7 +81,7 @@ cow.description=("Cattle-colloquially cows-are the most common type of large "
 zoo.animal.append(cow)
 ```
 
-[_Pitfalls_](#pitfall-init)
+[_Pitfalls_: uninitialized properties](#uninitialized-properties)
 
 Finally, use `serialize_xml` to serialize to a XML file (`serialze_json` and
 `serialize_yaml` will be added later). This function also takes three
@@ -96,3 +106,20 @@ print outstream.getvalue()
 # >     of large domesticated ungulates.</animal>
 # > </zoo>
 ```
+
+## Advanced usage I: Combine schemas
+
+## Pitfalls
+
+### Uninitialized Properties
+
+A `Attribute`, `ChildObject`, and `TextContent` property are uninitialized when
+a serializable object is created, unless:
+1. a `default` value is set when defining the property
+2. the property is set with argument passed to `__init__`
+3. the property is deserialized from a file
+
+If a property is uninitialized, accessing it will raise a
+`SerializableAttributeError`. To avoid complex logic checking if a
+serializable property is initialized, always define `default` value, or set it
+in the inherited `__init__`.
