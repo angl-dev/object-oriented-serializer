@@ -144,7 +144,7 @@ for animal in zoo2.animal:
 # > fish
 ```
 
-## Advanced usage II: Advanced serialzable properties
+## Advanced usage II: Advanced serializable properties
 
 Sometimes we want the key and property name of a serializable property to be
 different. For example, the key might be a reserved keyword in Python. Use
@@ -185,6 +185,8 @@ for feature in animal.features:
 
 It's also possible to ask the serializer to ignore a serializable property.
 Return `IGNORE` in the `serializer` method to do so.
+
+## Advanced usage III: Fully customized serialization & deserialization
 
 ## Pitfalls
 
