@@ -403,11 +403,10 @@ class Serializable(object):
         return False
 
     def deserialize_textcontent(self, value, line=None):
-        try:
-            text = getattr(type(self), self.__textcontent)
-        except AttributeError:
+        if self.__textcontent is None:
             raise SerializableFormatError("Line {}: Object {} does not accept text content"
                     .format(line or self.serialized_line, self.serialized_key))
+        text = getattr(type(self), self.__textcontent)
         if text.fdsrl is None:
             setattr(self, text.attr, value)
         else:
@@ -419,11 +418,10 @@ class Serializable(object):
             setattr(self, text.attr, v)
 
     def serialize_textcontent(self):
-        try:
-            text = getattr(type(self), self.__textcontent)
-        except AttributeError:
+        if self.__textcontent is None:
             raise SerializableAPIError("Class {}: No serializable text content"
                     .format(self.__class__.__name__))
+        text = getattr(type(self), self.__textcontent)
         value = getattr(self, text.attr, text.default)
         if text.required and value is _Constant.nodefault:
             raise SerializableAPIError("Class {}: Missing required text content"
@@ -447,10 +445,9 @@ class Serializable(object):
             if child.required and not hasattr(self, child.attr):
                 raise SerializableFormatError("Line {}: Missing required child object {} (property {})"
                         .format(self.serialized_line, child.key, child.attr))
-        try:
-            text = getattr(type(self), self.__textcontent)
-        except AttributeError:
+        if self.__textcontent is None:
             return
+        text = getattr(type(self), self.__textcontent)
         if text.required and not hasattr(self, text.attr):
             raise SerializableFormatError("Line {}: Missing required text content (property {})"
                     .format(self.serialized_line, text.attr))
@@ -509,9 +506,9 @@ class Serializable(object):
 ################################################################################
 ##                                 Exposed API                                ##
 ################################################################################
-def serialize_xml(f, root_tag, obj, **kwargs):
+def serialize_xml(f, root_tag, obj, pretty=False, **kwargs):
     with et.xmlfile(f, **kwargs) as xf:
-        obj._dump_xml(xf, root_tag, 0)
+        obj._dump_xml(xf, root_tag, 0, pretty)
 
 class _Parser(object):
     def __init__(self, root_tag, root_factory, **kwargs):
@@ -522,10 +519,11 @@ class _Parser(object):
         self.root_factory = root_factory
         self.root = None
         self.stack = []
-        if encoding is None:
+        self.dcache = ''
+        if self.encoding is None:
             self.parser = expat.ParserCreate()
         else:
-            self.parser = expat.ParserCreate(encoding)
+            self.parser = expat.ParserCreate(self.encoding)
         self.parser.StartElementHandler = self.start_element_handler
         self.parser.EndElementHandler = self.end_element_handler
         self.parser.CharacterDataHandler = self.character_data_handler
@@ -550,26 +548,30 @@ class _Parser(object):
             obj = parent.create_child_object(name, self.parser.CurrentLineNumber)
         for k, v in attributes.iteritems():
             if self.encoding is not None:
-                k, v = k.encode(self.encoding), v.encoding(self.encoding)
+                k = k.encode(self.encoding)
+                if isinstance(v, basestring):
+                    v = v.encode(self.encoding)
             obj.deserialize_attribute(k, v, self.parser.CurrentLineNumber)
         obj.after_deserialize_attributes()
         self.stack.append(obj)
+        self.dcache = ''
 
     def end_element_handler(self, name):
         obj = self.stack.pop()
+        data = self.dcache.strip()
+        if data:
+            obj.deserialize_textcontent(data, self.parser.CurrentLineNumber)
+        self.dcache = ''
         obj.after_deserialize_all()
         if len(self.stack) == 0:
             self.root = obj
         else:
-            self.stack[-1].add_child_object(obj)
+            self.stack[-1].add_child_object(name, obj)
 
     def character_data_handler(self, data):
         if self.encoding is not None:
             data = data.encode(self.encoding)
-        data = data.strip()
-        if not data:
-            return
-        self.stack[-1].deserialize_textcontent(data, self.parser.CurrentLineNumber)
+        self.dcache += data
 
 def deserialize_xml(f, root_tag, root_factory, **kwargs):
     parser = _Parser(root_tag, root_factory, **kwargs)
