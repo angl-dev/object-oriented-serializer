@@ -3,11 +3,11 @@ from serializer import *
 ## Basic usage
 
 class Animal(Serializable):
-    type = Attribute(required=True)
-    description = TextContent()
+    type = SerializableAttribute(required=True)
+    description = SerializableTextContent()
 
 class Zoo(Serializable):
-    animal = ChildObject(Animal, required=True, multiple=True)
+    animal = SerializableChildObject(Animal, required=True, multiple=True)
 
 from StringIO import StringIO
 zoo = deserialize_xml(StringIO('''
@@ -40,10 +40,10 @@ class AnimalCategory(Animal):
     def description(self):  # remove the text content from the schema
         raise NotImplementedError
 
-    subtype = ChildObject(Animal, required=True, multiple=True)
+    subtype = SerializableChildObject(Animal, required=True, multiple=True)
 
 class BetterZoo(Zoo):
-    category = ChildObject(AnimalCategory, required=True, multiple=True)
+    category = SerializableChildObject(AnimalCategory, required=True, multiple=True)
 
 zoo2 = deserialize_xml(StringIO('<zoo><category type="mammal">'
     '<subtype type="human">Humans (taxonomically, Homo sapiens) are the only '
@@ -61,7 +61,7 @@ for animal in zoo2.animal:
     print animal.type
 
 class DetailedAnimal(Animal):
-    features = Attribute(required=False, key='feature')
+    features = SerializableAttribute(required=False, key='feature')
 
     @features.deserializer
     def features(s):

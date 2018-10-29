@@ -79,7 +79,7 @@ class _Base(object):
 ################################################################################
 ##                   Attribute, child object & text content                   ##
 ################################################################################
-class Attribute(_default_tuple("Attribute"
+class SerializableAttribute(_default_tuple("SerializableAttribute"
     ,required=False                 # if the attribute is required during serialization/deserialization
     ,default=_Constant.nodefault    # a default value if the attribute is not required
     ,key=None                       # the key of this attribute in the serialized format
@@ -126,7 +126,7 @@ class Attribute(_default_tuple("Attribute"
     def deserializer(self, fdsrl):
         return self._replace(fdsrl=fdsrl)
 
-class ChildObject(_default_tuple("ChildObject"
+class SerializableChildObject(_default_tuple("SerializableChildObject"
     ,'factory'                      # factory function for creating a new child object
     ,required=False                 # if the child object(s) is(are) required
     ,multiple=False                 # if multiple child object(s) are accepted
@@ -168,12 +168,12 @@ class ChildObject(_default_tuple("ChildObject"
         except AttributeError:
             raise SerializableAttributeError("Can't delete property: " + self.attr)
 
-def RecursiveChildObject(required=False, multiple=False, default=_Constant.nodefault,
+def RecursiveSerializableChildObject(required=False, multiple=False, default=_Constant.nodefault,
         key=None, attr=None, fget=None, fset=None, fdel=None):
-    return ChildObject(_Constant.recursive, required=required, multiple=multiple, default=default,
+    return SerializableChildObject(_Constant.recursive, required=required, multiple=multiple, default=default,
             key=key, attr=attr, fget=fget, fset=fset, fdel=fdel)
 
-class TextContent(_default_tuple("TextContent"
+class SerializableTextContent(_default_tuple("SerializableTextContent"
     ,required=False                 # if the text content is required during serialization/deserialization
     ,default=_Constant.nodefault    # a default value if the text content is not required
     ,attr=None                      # the property name in the Python object
@@ -231,7 +231,7 @@ class _SerializableMeta(ABCMeta):
         attrs, children, text = {}, {}, None
         for k in dir(T):
             v = getattr(T, k)
-            if isinstance(v, Attribute):
+            if isinstance(v, SerializableAttribute):
                 v = v._replace(key=v.key or k, attr=k)
                 if v.key in attrs:
                     conflict = attrs[v.key]
@@ -239,7 +239,7 @@ class _SerializableMeta(ABCMeta):
                             .format(name, v.key, v.attr, conflict.attr))
                 attrs[v.key] = v
                 attrmap[k] = v
-            elif isinstance(v, ChildObject):
+            elif isinstance(v, SerializableChildObject):
                 v = v._replace(key=v.key or k, attr=k)
                 if v.key in children:
                     conflict = children[v.key]
@@ -247,7 +247,7 @@ class _SerializableMeta(ABCMeta):
                             .format(name, v.key, v.attr, conflict.attr))
                 children[v.key] = v
                 attrmap[k] = v
-            elif isinstance(v, TextContent):
+            elif isinstance(v, SerializableTextContent):
                 if text is not None:
                     raise SerializableAPIError("Class {}: Two or more text contents are defined (property {} and {})"
                             .format(name, k, text.attr))

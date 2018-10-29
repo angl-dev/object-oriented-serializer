@@ -17,15 +17,17 @@ following vocabulary:
 
 * **serializable class**: a class inheriting the `Serializable` class
 * **serializable object**: an instance of a serializable class
-* **serializable property**: a `Attribute`, `ChildObject` or `TextContent`
-  property of a serializable class
+* **serializable property**: a `SerializableAttribute`,
+    `SerializableChildObject` or `SerializableTextContent` property of a
+    serializable class
 * **key**: key in the serialized format, that is, tag in XML, key in JSON/YAML
 
 ## Basic usage
 
 The key class is the `Serializable` class. Inherit this class to create a
-schema for serializable objects. Use `Attribute`, `ChildObject` and
-`TextContent` to add schema on the corresponding contents to this object.
+schema for serializable objects. Use `SerializableAttribute`,
+`SerializableChildObject` and `SerializableTextContent` to add schema on the
+corresponding contents to this object.
 
 A simple example:
 
@@ -33,11 +35,11 @@ A simple example:
 from serializer import *
 
 class Animal(Serializable):
-    type = Attribute(required=True)
-    description = TextContent()
+    type = SerializableAttribute(required=True)
+    description = SerializableTextContent()
 
 class Zoo(Serializable):
-    animal = ChildObject(Animal, required=True, multiple=True)
+    animal = SerializableChildObject(Animal, required=True, multiple=True)
 ```
 
 Use `deserialize_xml` to deserialize a XML file with a serializable class
@@ -119,10 +121,11 @@ class AnimalCategory(Animal):
     def description(self):  # remove the text content from the schema
         raise NotImplementedError
 
-    subtype = ChildObject(Animal, required=True, multiple=True)
+    subtype = SerializableChildObject(Animal, required=True, multiple=True)
 
 class BetterZoo(Zoo):
-    category = ChildObject(AnimalCategory, required=True, multiple=True)
+    category = SerializableChildObject(AnimalCategory, required=True,
+        multiple=True)
 
 zoo2 = deserialize_xml(StringIO('<zoo><category type="mammal">'
     '<subtype type="human">Humans (taxonomically, Homo sapiens) are the only '
@@ -148,19 +151,20 @@ for animal in zoo2.animal:
 
 Sometimes we want the key and property name of a serializable property to be
 different. For example, the key might be a reserved keyword in Python. Use
-`key` in `Attribute`, `ChildObject` and `TextContent` to specify a different
-key.
+`key` in `SerializableAttribute`, `SerializableChildObject` and
+`SerializableTextContent` to specify a different key.
 
-`Attribute`, `ChildObject` and `TextContent` can also be used just like
-Python's built-in `property` decorator. Besides, XML, JSON and YAML only
-support a limited number of basic data types, but we often want to have some
-more specific type of data. So, `Attribute` and `TextContent` also have
+`SerializableAttribute`, `SerializableChildObject` and
+`SerializableTextContent` can also be used just like Python's built-in
+`property` decorator. Besides, XML, JSON and YAML only support a limited
+number of basic data types, but we often want to have some more specific type
+of data. So, `SerializableAttribute` and `SerializableTextContent` also have
 `serializer` and `serializer` methods which can be used to convert between
 custom data types and basic data types.
 
 ```python
 class DetailedAnimal(Animal):
-    features = Attribute(required=False, key='feature')
+    features = SerializableAttribute(required=False, key='feature')
 
     @features.deserializer
     def features(s):
@@ -192,8 +196,9 @@ Return `IGNORE` in the `serializer` method to do so.
 
 ### Uninitialized Properties
 
-A `Attribute`, `ChildObject`, and `TextContent` property are uninitialized when
-a serializable object is created, unless:
+A `SerializableAttribute`, `SerializableChildObject`, and
+`SerializableTextContent` property are uninitialized when a serializable
+object is created, unless:
 1. a `default` value is set when defining the property
 2. the property is set with argument passed to `__init__`
 3. the property is deserialized from a file
