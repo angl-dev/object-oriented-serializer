@@ -322,6 +322,26 @@ class Serializable(object):
             del self.__key
         except AttributeError:
             pass
+        for attr in self.__attributes.itervalues()::
+            try:
+                getattr(self, attr.attr).shrink()
+            except:
+                pass
+        for child in self.__children.itervalues():
+            try:
+                obj = getattr(self, child.attr)
+            except:
+                continue
+            if child.multiple:
+                for o in obj:
+                    o.shrink()
+            else:
+                obj.shrink()
+        if self.__textcontent is not None:
+            try:
+                getattr(self, getattr(type(self), self.__textcontent).attr).shrink()
+            except:
+                pass
 
     ############################################################################
     ##      Override these to customize serialization/deserialization         ##
@@ -452,6 +472,18 @@ class Serializable(object):
             raise SerializableFormatError("Line {}: Missing required text content (property {})"
                     .format(self.serialized_line, text.attr))
 
+    def after_deserialize_document(self):
+        for child in self.__children.itervalues():
+            try:
+                obj = getattr(self, child.attr)
+            except AttributeError:
+                continue
+            if child.multiple:
+                for o in obj:
+                    o.after_deserialize_document()
+            else:
+                obj.after_deserialize_document()
+
     ############################################################################
     ##                              Internal API                              ##
     ############################################################################
@@ -576,4 +608,5 @@ class _Parser(object):
 def deserialize_xml(f, root_tag, root_factory, **kwargs):
     parser = _Parser(root_tag, root_factory, **kwargs)
     parser.parser.ParseFile(f)
+    parser.root.after_deserialize_document()
     return parser.root
